@@ -166,6 +166,7 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
         
         // The title label will fade
         self.titleLabel.alpha = animated ? 0.0f : 1.0f;
+        self.titleLabel2.alpha = animated ? 0.0f : 1.0f;
     }
 
     // If an initial aspect ratio was set before presentation, set it now once the rest of
@@ -190,6 +191,7 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     void (^updateContentBlock)(void) = ^{
         [self setNeedsStatusBarAppearanceUpdate];
         self.titleLabel.alpha = 1.0f;
+        self.titleLabel2.alpha = 1.0f;
     };
 
     if (animated) {
@@ -388,6 +390,9 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     CGRect frame = self.titleLabel.frame;
     frame.size = [self.titleLabel sizeThatFits:self.cropView.frame.size];
     self.titleLabel.frame = frame;
+    frame = self.titleLabel2.frame;
+    frame.size = [self.titleLabel2 sizeThatFits:self.cropView.frame.size];
+    self.titleLabel2.frame = frame;
 
     // Set out the appropriate inset for that
     CGFloat verticalInset = self.statusBarHeight;
@@ -449,6 +454,9 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     
     if (self.title.length) {
         self.titleLabel.frame = [self frameForTitleLabelWithSize:self.titleLabel.frame.size verticalLayout:self.verticalLayout];
+        CGRect f = [self frameForTitleLabelWithSize:self.titleLabel2.frame.size verticalLayout:self.verticalLayout];
+        f.origin.y = self.titleLabel.frame.origin.y+self.titleLabel.frame.size.height+10;
+        self.titleLabel2.frame = f;
         [self.cropView moveCroppedContentToCenterAnimated:NO];
     }
 
@@ -1048,6 +1056,22 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     self.titleLabel.frame = [self frameForTitleLabelWithSize:self.titleLabel.frame.size verticalLayout:self.verticalLayout];
 }
 
+- (void)setTitle2:(NSString *)title
+{
+    _title2 = title;
+
+    if (self.title.length == 0) {
+        [_titleLabel2 removeFromSuperview];
+        _cropView.cropRegionInsets = UIEdgeInsetsMake(0, 0, 0, 0);
+        _titleLabel2 = nil;
+        return;
+    }
+
+    self.titleLabel2.text = self.title2;
+    [self.titleLabel2 sizeToFit];
+    self.titleLabel2.frame = [self frameForTitleLabelWithSize:self.titleLabel2.frame.size verticalLayout:self.verticalLayout];
+}
+
 - (void)setDoneButtonTitle:(NSString *)title
 {
     self.toolbar.doneTextButtonTitle = title;
@@ -1101,7 +1125,7 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     _titleLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
     _titleLabel.backgroundColor = [UIColor clearColor];
     _titleLabel.textColor = [UIColor whiteColor];
-    _titleLabel.numberOfLines = 1;
+    _titleLabel.numberOfLines = 2;
     _titleLabel.baselineAdjustment = UIBaselineAdjustmentAlignBaselines;
     _titleLabel.clipsToBounds = YES;
     _titleLabel.textAlignment = NSTextAlignmentCenter;
@@ -1111,6 +1135,27 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
 
     return _titleLabel;
 }
+
+- (UILabel *)titleLabel2
+{
+    if (!self.title.length) { return nil; }
+    if (_titleLabel2) { return _titleLabel2; }
+
+    _titleLabel2 = [[UILabel alloc] initWithFrame:CGRectZero];
+    _titleLabel2.font = [UIFont systemFontOfSize:10.5];
+    _titleLabel2.backgroundColor = [UIColor clearColor];
+    _titleLabel2.textColor = [UIColor whiteColor];
+    _titleLabel2.numberOfLines = 2;
+    _titleLabel2.baselineAdjustment = UIBaselineAdjustmentAlignBaselines;
+    _titleLabel2.clipsToBounds = YES;
+    _titleLabel2.textAlignment = NSTextAlignmentCenter;
+    _titleLabel2.text = @"hsjdfhjksdfhk";
+
+    [self.view insertSubview:self.titleLabel2 aboveSubview:self.cropView];
+
+    return _titleLabel2;
+}
+
 
 - (void)setAspectRatioLockEnabled:(BOOL)aspectRatioLockEnabled
 {

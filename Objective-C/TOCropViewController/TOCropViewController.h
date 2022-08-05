@@ -163,6 +163,9 @@
  */
 @property (nullable, nonatomic, readonly) UILabel *titleLabel;
 
+@property (nullable, nonatomic, copy) NSString *title2;
+@property (nullable, nonatomic, readonly) UILabel *titleLabel2;
+
 /**
  Title for the 'Done' button.
  Setting this will override the Default which is a localized string for "Done".
