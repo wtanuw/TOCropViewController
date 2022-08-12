@@ -398,7 +398,7 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     CGFloat verticalInset = self.statusBarHeight;
     verticalInset += kTOCropViewControllerTitleTopPadding;
     verticalInset += self.titleLabel.frame.size.height;
-    self.cropView.cropRegionInsets = UIEdgeInsetsMake(verticalInset, 0, insets.bottom, 0);
+    self.cropView.cropRegionInsets = UIEdgeInsetsMake(verticalInset+self.titleLabel2.frame.size.height+10, 0, insets.bottom, 0);
 }
 
 - (void)adjustToolbarInsets
