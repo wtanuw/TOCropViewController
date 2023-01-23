@@ -55,6 +55,9 @@ static const CGFloat kTOCropOverLayerCornerWidth = 20.0f;
     UIView *(^newLineView)(void) = ^UIView *(void){
         return [self createNewLineView];
     };
+    self.cropFrameWidth = 1.0f;
+    self.cropCornerLength = kTOCropOverLayerCornerWidth;
+    self.cropCornerWidth = 3.0f;
 
     _outerLineViews     = @[newLineView(), newLineView(), newLineView(), newLineView()];
     
@@ -93,10 +96,10 @@ static const CGFloat kTOCropOverLayerCornerWidth = 20.0f;
         
         CGRect frame = CGRectZero;
         switch (i) {
-            case 0: frame = (CGRect){0,-1.0f,boundsSize.width+2.0f, 1.0f}; break; //top
-            case 1: frame = (CGRect){boundsSize.width,0.0f,1.0f,boundsSize.height}; break; //right
-            case 2: frame = (CGRect){-1.0f,boundsSize.height,boundsSize.width+2.0f,1.0f}; break; //bottom
-            case 3: frame = (CGRect){-1.0f,0,1.0f,boundsSize.height+1.0f}; break; //left
+            case 0: frame = (CGRect){0,-_cropFrameWidth,boundsSize.width+_cropFrameWidth*2, _cropFrameWidth}; break; //top
+            case 1: frame = (CGRect){boundsSize.width,0.0f,_cropFrameWidth,boundsSize.height}; break; //right
+            case 2: frame = (CGRect){-_cropFrameWidth,boundsSize.height,boundsSize.width+_cropFrameWidth*2,_cropFrameWidth}; break; //bottom
+            case 3: frame = (CGRect){-_cropFrameWidth,0,_cropFrameWidth,boundsSize.height+_cropFrameWidth}; break; //left
         }
         
         lineView.frame = frame;
@@ -110,20 +113,20 @@ static const CGFloat kTOCropOverLayerCornerWidth = 20.0f;
         CGRect verticalFrame = CGRectZero, horizontalFrame = CGRectZero;
         switch (i) {
             case 0: //top left
-                verticalFrame = (CGRect){-3.0f,-3.0f,3.0f,kTOCropOverLayerCornerWidth+3.0f};
-                horizontalFrame = (CGRect){0,-3.0f,kTOCropOverLayerCornerWidth,3.0f};
+                verticalFrame = (CGRect){-_cropCornerWidth,-_cropCornerWidth,_cropCornerWidth,_cropCornerLength+_cropCornerWidth};
+                horizontalFrame = (CGRect){0,-_cropCornerWidth,_cropCornerLength,_cropCornerWidth};
                 break;
             case 1: //top right
-                verticalFrame = (CGRect){boundsSize.width,-3.0f,3.0f,kTOCropOverLayerCornerWidth+3.0f};
-                horizontalFrame = (CGRect){boundsSize.width-kTOCropOverLayerCornerWidth,-3.0f,kTOCropOverLayerCornerWidth,3.0f};
+                verticalFrame = (CGRect){boundsSize.width,-_cropCornerWidth,_cropCornerWidth,_cropCornerLength+_cropCornerWidth};
+                horizontalFrame = (CGRect){boundsSize.width-_cropCornerLength,-_cropCornerWidth,_cropCornerLength,_cropCornerWidth};
                 break;
             case 2: //bottom right
-                verticalFrame = (CGRect){boundsSize.width,boundsSize.height-kTOCropOverLayerCornerWidth,3.0f,kTOCropOverLayerCornerWidth+3.0f};
-                horizontalFrame = (CGRect){boundsSize.width-kTOCropOverLayerCornerWidth,boundsSize.height,kTOCropOverLayerCornerWidth,3.0f};
+                verticalFrame = (CGRect){boundsSize.width,boundsSize.height-_cropCornerLength,_cropCornerWidth,_cropCornerLength+_cropCornerWidth};
+                horizontalFrame = (CGRect){boundsSize.width-_cropCornerLength,boundsSize.height,_cropCornerLength,_cropCornerWidth};
                 break;
             case 3: //bottom left
-                verticalFrame = (CGRect){-3.0f,boundsSize.height-kTOCropOverLayerCornerWidth,3.0f,kTOCropOverLayerCornerWidth};
-                horizontalFrame = (CGRect){-3.0f,boundsSize.height,kTOCropOverLayerCornerWidth+3.0f,3.0f};
+                verticalFrame = (CGRect){-_cropCornerWidth,boundsSize.height-_cropCornerLength,_cropCornerWidth,_cropCornerLength};
+                horizontalFrame = (CGRect){-_cropCornerWidth,boundsSize.height,_cropCornerLength+_cropCornerWidth,_cropCornerWidth};
                 break;
         }
         
@@ -219,11 +222,22 @@ static const CGFloat kTOCropOverLayerCornerWidth = 20.0f;
     [self setGridHidden:gridHidden animated:NO];
 }
 
+- (void)updateView
+{
+    if (_outerLineViews) {
+        [self layoutLines];
+    }
+}
+
 #pragma mark - Private methods
 
 - (nonnull UIView *)createNewLineView {
     UIView *newLine = [[UIView alloc] initWithFrame:CGRectZero];
-    newLine.backgroundColor = [UIColor whiteColor];
+    if (self.cropFrameColor) {
+        newLine.backgroundColor = self.cropFrameColor;
+    } else {
+        newLine.backgroundColor = [UIColor whiteColor];
+    }
     [self addSubview:newLine];
     return newLine;
 }

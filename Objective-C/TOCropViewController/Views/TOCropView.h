@@ -286,6 +286,10 @@ The minimum croping aspect ratio. If set, user is prevented from setting croppin
  */
 - (void)moveCroppedContentToCenterAnimated:(BOOL)animated;
 
+@property (nullable, nonatomic, copy) UIColor *cropFrameColor;
+@property (nonatomic, assign) NSInteger cropFrameWidth;
+@property (nonatomic, assign) NSInteger cropCornerLength;
+@property (nonatomic, assign) NSInteger cropCornerWidth;
 @end
 
 NS_ASSUME_NONNULL_END

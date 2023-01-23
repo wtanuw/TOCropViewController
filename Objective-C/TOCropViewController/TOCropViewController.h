@@ -470,5 +470,10 @@
                                           setup:(nullable void (^)(void))setup
                                      completion:(nullable void (^)(void))completion NS_SWIFT_NAME(dismissAnimatedFrom(_:croppedImage:toView:toFrame:setup:completion:));
 
+@property (nullable, nonatomic, copy) UIColor *cropFrameColor;
+@property (nonatomic, assign) NSInteger cropFrameWidth;
+@property (nonatomic, assign) NSInteger cropCornerLength;
+@property (nonatomic, assign) NSInteger cropCornerWidth;
+
 @end
 

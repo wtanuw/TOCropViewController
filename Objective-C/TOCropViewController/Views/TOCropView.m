@@ -309,8 +309,8 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
     //Set the crop box to the size we calculated and align in the middle of the screen
     CGRect frame = CGRectZero;
     frame.size = self.hasAspectRatio ? cropBoxSize : scaledSize;
-    frame.origin.x = floorf(bounds.origin.x + floorf((CGRectGetWidth(bounds) - frame.size.width) * 0.5f));
-    frame.origin.y = floorf(bounds.origin.y + floorf((CGRectGetHeight(bounds) - frame.size.height) * 0.5f));
+    frame.origin.x = floorf(bounds.origin.x + floorf((CGRectGetWidth(bounds) - frame.size.width) * 0));
+    frame.origin.y = floorf(bounds.origin.y + floorf((CGRectGetHeight(bounds) - frame.size.height) * 0));
     self.cropBoxFrame = frame;
     
     //set the fully zoomed out state initially
@@ -1742,6 +1742,28 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
 - (BOOL)hasAspectRatio
 {
     return (self.aspectRatio.width > FLT_EPSILON && self.aspectRatio.height > FLT_EPSILON);
+}
+
+
+- (void)setCropFrameColor:(UIColor *)cropFrameColor {
+    _cropFrameColor = cropFrameColor;
+    _gridOverlayView.cropFrameColor = cropFrameColor;
+    [_gridOverlayView updateView];
+}
+- (void)setCropFrameWidth:(NSInteger)cropFrameWidth {
+    _cropFrameWidth = cropFrameWidth;
+    _gridOverlayView.cropFrameWidth = _cropFrameWidth;
+    [_gridOverlayView updateView];
+}
+- (void)setCropCornerLength:(NSInteger)cropCornerLength {
+    _cropCornerLength = cropCornerLength;
+    _gridOverlayView.cropCornerLength = _cropCornerLength;
+    [_gridOverlayView updateView];
+}
+- (void)setCropCornerWidth:(NSInteger)cropCornerWidth {
+    _cropCornerWidth = cropCornerWidth;
+    _gridOverlayView.cropCornerWidth = _cropCornerWidth;
+    [_gridOverlayView updateView];
 }
 
 @end

@@ -141,6 +141,11 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
 {
     [super viewWillAppear:animated];
     
+    self.cropView.cropFrameColor = self.cropFrameColor;
+    self.cropView.cropFrameWidth = self.cropFrameWidth;
+    self.cropView.cropCornerLength = self.cropCornerLength;
+    self.cropView.cropCornerWidth = self.cropCornerWidth;
+    
     // If we're animating onto the screen, set a flag
     // so we can manually control the status bar fade out timing
     if (animated) {
@@ -356,7 +361,14 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
 
     // Work out vertical position
     if (@available(iOS 11.0, *)) {
-        frame.origin.y = self.view.safeAreaInsets.top + kTOCropViewControllerTitleTopPadding;
+        
+        float y = 0;
+        if (self.toolbarPosition == TOCropViewControllerToolbarPositionBottom) {
+//            frame.origin.y = CGRectGetHeight(self.view.bounds) - (frame.size.height + insets.bottom);
+        } else {
+            y = self.toolbar.frame.size.height;
+        }
+        frame.origin.y = y + self.view.safeAreaInsets.top + kTOCropViewControllerTitleTopPadding;
     }
     else {
         frame.origin.y = self.statusBarHeight + kTOCropViewControllerTitleTopPadding;
@@ -396,9 +408,10 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
 
     // Set out the appropriate inset for that
     CGFloat verticalInset = self.statusBarHeight;
-    verticalInset += kTOCropViewControllerTitleTopPadding;
-    verticalInset += self.titleLabel.frame.size.height;
-    self.cropView.cropRegionInsets = UIEdgeInsetsMake(verticalInset+self.titleLabel2.frame.size.height+10, 0, insets.bottom, 0);
+//    verticalInset += kTOCropViewControllerTitleTopPadding;
+//    verticalInset += self.titleLabel.frame.size.height;
+    verticalInset += self.titleLabel2.frame.size.height;
+    self.cropView.cropRegionInsets = UIEdgeInsetsMake(verticalInset+10, 0, insets.bottom, 0);
 }
 
 - (void)adjustToolbarInsets
@@ -1149,7 +1162,7 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     _titleLabel2.baselineAdjustment = UIBaselineAdjustmentAlignBaselines;
     _titleLabel2.clipsToBounds = YES;
     _titleLabel2.textAlignment = NSTextAlignmentCenter;
-    _titleLabel2.text = @"hsjdfhjksdfhk";
+    _titleLabel2.text = @"";
 
     [self.view insertSubview:self.titleLabel2 aboveSubview:self.cropView];
 

@@ -38,6 +38,11 @@ NS_ASSUME_NONNULL_BEGIN
 /** Shows and hides the interior grid lines with an optional crossfade animation. */
 - (void)setGridHidden:(BOOL)hidden animated:(BOOL)animated;
 
+@property (nullable, nonatomic, copy) UIColor *cropFrameColor;
+@property (nonatomic, assign) NSInteger cropFrameWidth;
+@property (nonatomic, assign) NSInteger cropCornerLength;
+@property (nonatomic, assign) NSInteger cropCornerWidth;
+- (void)updateView;
 @end
 
 NS_ASSUME_NONNULL_END
