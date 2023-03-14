@@ -475,5 +475,7 @@
 @property (nonatomic, assign) NSInteger cropCornerLength;
 @property (nonatomic, assign) NSInteger cropCornerWidth;
 
+@property (nonatomic, assign) BOOL stillImageCropboxMove;
+
 @end
 

@@ -290,6 +290,10 @@ The minimum croping aspect ratio. If set, user is prevented from setting croppin
 @property (nonatomic, assign) NSInteger cropFrameWidth;
 @property (nonatomic, assign) NSInteger cropCornerLength;
 @property (nonatomic, assign) NSInteger cropCornerWidth;
+
+@property (nonatomic, assign) BOOL stillImageCropboxMove;
+- (void)moveCroppedContentToFitAnimated:(BOOL)animated;
+
 @end
 
 NS_ASSUME_NONNULL_END

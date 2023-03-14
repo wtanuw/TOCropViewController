@@ -99,6 +99,8 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
         #else
         _toolbarPosition = TOCropViewControllerToolbarPositionBottom;
         #endif
+        
+        self.stillImageCropboxMove = NO;
     }
 	
     return self;
@@ -145,6 +147,7 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     self.cropView.cropFrameWidth = self.cropFrameWidth;
     self.cropView.cropCornerLength = self.cropCornerLength;
     self.cropView.cropCornerWidth = self.cropCornerWidth;
+    self.cropView.stillImageCropboxMove = self.stillImageCropboxMove;
     
     // If we're animating onto the screen, set a flag
     // so we can manually control the status bar fade out timing
@@ -470,7 +473,11 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
         CGRect f = [self frameForTitleLabelWithSize:self.titleLabel2.frame.size verticalLayout:self.verticalLayout];
         f.origin.y = self.titleLabel.frame.origin.y+self.titleLabel.frame.size.height+10;
         self.titleLabel2.frame = f;
-        [self.cropView moveCroppedContentToCenterAnimated:NO];
+        if (_stillImageCropboxMove) {
+            [self.cropView moveCroppedContentToFitAnimated:NO];
+        } else {
+            [self.cropView moveCroppedContentToCenterAnimated:NO];
+        }
     }
 
     [UIView performWithoutAnimation:^{
