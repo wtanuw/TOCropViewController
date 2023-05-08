@@ -130,6 +130,9 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
 
 - (void)setup
 {
+    _translucencyAlwaysHidden = YES;
+    
+    
     __weak typeof(self) weakSelf = self;
     
     BOOL circularMode = (self.croppingStyle == TOCropViewCroppingStyleCircular);
@@ -322,15 +325,61 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
         CGFloat scaleCropBoxFrame = cropBoxFrame.size.height/cropBoxFrame.size.width;
         CGFloat scaleimageSize = imageSize.height/imageSize.width;
         CGFloat scaler = MIN(cropBoxFrame.size.height/self.backgroundContainerView.bounds.size.height, cropBoxFrame.size.width/self.backgroundContainerView.bounds.size.width);
-        float scalea = cropBoxFrame.size.height/self.backgroundContainerView.bounds.size.height;
-        float scaleb = cropBoxFrame.size.width/self.backgroundContainerView.bounds.size.width;
-        if (cropBoxFrame.size.width > cropBoxFrame.size.height) {
-            frame.size.width = MAX(cropBoxFrame.size.width, cropBoxFrame.size.width)*MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
-            frame.size.height = MAX(cropBoxFrame.size.height, cropBoxFrame.size.height)*MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
-            scaledSize.width = MAX(scaledSize.width, scaledSize.width)*MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
-            scaledSize.height = MAX(scaledSize.height, scaledSize.height)*MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
+        float scaleContentImageWidth = contentFrame.size.width / imageSize.width;
+        float scaleContentImageHeight = contentFrame.size.height / imageSize.height;
+        float scaleImageCropboxWidth = imageSize.width / cropBoxFrame.size.width;
+        float scaleImageCropboxHeight = imageSize.height / cropBoxFrame.size.height;
+//        float scaleWidth = cropBoxFrame.size.width / imageSize.width;
+//        float scaleHeight = cropBoxFrame.size.height / imageSize.height;
+        // ratio > 1 is landscape , < 1 is portrait
+        float cropboxRatio = cropBoxFrame.size.width / cropBoxFrame.size.height;
+        float contentFrameRatio = contentFrame.size.width / contentFrame.size.height;
+        float imageRatio = imageSize.width / imageSize.height;
+//        if (imageSize.width > imageSize.height) {
+//
+//            float calculatescale = MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
+//            frame.size.width = cropBoxFrame.size.width  *calculatescale;
+//            frame.size.height = cropBoxFrame.size.height*calculatescale;
+//            scaledSize.width = scaledSize.width         *calculatescale;
+//            scaledSize.height = scaledSize.height       *calculatescale;
+//        } else {
+//            float calculatescale = 1.0/MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
+//            frame.size.width = cropBoxFrame.size.width  *calculatescale;
+//            frame.size.height = cropBoxFrame.size.height*calculatescale;
+//            scaledSize.width = scaledSize.width         *calculatescale;
+//            scaledSize.height = scaledSize.height       *calculatescale;
+//        }
+        // fit image in content
+        if (scaleContentImageWidth > scaleContentImageHeight) {
+            //image portrait case, certical space is limit
+//            float calculatescale = MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
+//            float calculatescale = scaleHeight;
+            scaledSize = scaledImageSize;
         } else {
-            cropBoxFrame.size.width = MAX(cropBoxFrame.size.height, cropBoxFrame.size.height)*MIN(scaleimageSize, scaleCropBoxFrame);
+            //image lanscape case, horizontal space is limit
+//            float calculatescale = 1.0/MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
+//            float calculatescale = scaleWidth;
+            scaledSize = scaledImageSize;
+        }
+        // fit cropbox in image
+        if (imageRatio / cropboxRatio < 1) {
+            //cropbox  case
+//            float calculatescale = MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
+//            float calculatescale = scaleHeight;
+            //frame.size.height = frame.size.width*cropboxFrame.size.height/cropboxFrame.size.width
+            //frame.size.width = cropboxFrame.size.width;
+            frame.size.width = scaledImageSize.width;
+            frame.size.height = frame.size.height * scaledImageSize.width/frame.size.width;
+//            scaledSize.width = scaledSize.width         *calculatescale;
+//            scaledSize.height = scaledSize.height       *calculatescale;
+        } else {
+            //cropbox  case//image 300 * 200    crop 300*225
+//            float calculatescale = 1.0/MIN(scaleimageSize, scaleCropBoxFrame)/MAX(scaleimageSize, scaleCropBoxFrame);
+//            float calculatescale = scaleWidth;
+            frame.size.width = frame.size.width * scaledImageSize.height/frame.size.height;
+            frame.size.height = scaledImageSize.height;
+//            scaledSize.width = scaledSize.width         *calculatescale;
+//            scaledSize.height = scaledSize.height       *calculatescale;
         }
     }
     frame.origin.x = floorf(bounds.origin.x + floorf((CGRectGetWidth(bounds) - frame.size.width) * 0.5f));
@@ -432,6 +481,549 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
     self.foregroundImageView.frame = [self.backgroundContainerView.superview
                                       convertRect:self.backgroundContainerView.frame
                                       toView:self.foregroundContainerView];
+}
+
+- (void)updateStillImageCropBoxFrameWithGesturePoint:(CGPoint)point
+{
+    CGRect frame = self.cropBoxFrame;
+    CGRect originFrame = self.cropOriginFrame;
+    CGRect contentFrame = self.contentBounds;
+    
+    point.x = MAX(contentFrame.origin.x - self.cropViewPadding, point.x);
+    point.y = MAX(contentFrame.origin.y - self.cropViewPadding, point.y);
+    
+    //The delta between where we first tapped, and where our finger is now
+    CGFloat xDelta = ceilf(point.x - self.panOriginPoint.x);
+    CGFloat yDelta = ceilf(point.y - self.panOriginPoint.y);
+
+    //Current aspect ratio of the crop box in case we need to clamp it
+    CGFloat aspectRatio = (originFrame.size.width / originFrame.size.height);
+
+    //Note whether we're being aspect transformed horizontally or vertically
+    BOOL aspectHorizontal = NO, aspectVertical = NO;
+    
+    //Depending on which corner we drag from, set the appropriate min flag to
+    //ensure we can properly clamp the XY value of the box if it overruns the minimum size
+    //(Otherwise the image itself will slide with the drag gesture)
+    BOOL clampMinFromTop = NO, clampMinFromLeft = NO;
+
+    CGRect imageViewFrame = CGRectMake(0, 0, 0, 0);
+    imageViewFrame = self.imageViewFrame;
+    CGSize minimumSize = CGSizeMake(
+            MAX(kTOCropViewMinimumBoxSize*aspectRatio, kTOCropViewMinimumBoxSize),
+            MAX(kTOCropViewMinimumBoxSize/aspectRatio, kTOCropViewMinimumBoxSize)
+                                    );
+    NSLog(@"--------------vvvvvvvvvvv----------");
+    NSLog(@"minimumSize = %@",NSStringFromCGSize(minimumSize));
+    NSLog(@"cropBoxFrame frame = %@",NSStringFromCGRect(frame));
+    CGFloat frameTop = CGRectGetMinY(frame);
+    CGFloat frameLeft = CGRectGetMinX(frame);
+    CGFloat frameRight = CGRectGetMaxX(frame);
+    CGFloat frameBottom = CGRectGetMaxY(frame);
+    switch (self.tappedEdge) {//manip x y width height, not setting x or y first cause will affect maxX maxY
+        case TOCropViewOverlayEdgeLeft:
+            if (self.aspectRatioLockEnabled) { //manip [x] {y} width {height}
+                aspectHorizontal = YES;
+//                xDelta = MAX(xDelta, 0);
+                
+                float xmin = -contentFrame.size.height;
+                float xDeltaMaxFromMinSize = (CGRectGetMaxX(originFrame)  - minimumSize.width) - originFrame.origin.x;
+                xDelta = MIN(MAX(xmin,xDelta),xDeltaMaxFromMinSize);
+                NSLog(@"xdelta%f",xDelta);
+                NSLog(@"%f",xmin);
+                NSLog(@"%f  = %f - %f - %f",xDeltaMaxFromMinSize,contentFrame.size.width,minimumSize.width,originFrame.origin.x);
+                NSLog(@"%f",xDelta);
+                frame.origin.x   = originFrame.origin.x + xDelta;
+                frame.size.width = originFrame.size.width - xDelta;
+                if (CGRectGetMinX(frame) < CGRectGetMinX(imageViewFrame)) {
+                    frame.size.width = CGRectGetMaxX(frame) - CGRectGetMinX(imageViewFrame);
+                    frame.origin.x   = CGRectGetMinX(imageViewFrame);
+                }
+                CGPoint scaleOrigin = (CGPoint){CGRectGetMaxX(originFrame), CGRectGetMidY(originFrame)};
+                frame.size.height = frame.size.width / aspectRatio;
+                frame.origin.y = scaleOrigin.y - (frame.size.height * 0.5f);
+                if (CGRectGetMinY(frame) < CGRectGetMinY(imageViewFrame)) {
+                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(imageViewFrame);
+                    frame.origin.y = CGRectGetMinY(imageViewFrame);
+                }
+                if (CGRectGetMaxY(frame) > CGRectGetMaxY(imageViewFrame)) {
+                    frame.size.height = CGRectGetMaxY(imageViewFrame) - CGRectGetMinY(frame);
+                }
+                frame.size.width   = frame.size.height * aspectRatio;
+                frame.origin.x     = CGRectGetMaxX(originFrame) - frame.size.width;
+                
+//                if (CGRectGetMinX(frame) < CGRectGetMinX(imageViewFrame)) {
+//                    frame.size.width = CGRectGetMaxX(frame) - CGRectGetMinX(imageViewFrame);
+//                    frame.origin.x   = CGRectGetMinX(imageViewFrame);
+//                }
+//                if (CGRectGetMaxX(frame) > CGRectGetMaxX(imageViewFrame)) {
+//                    frame.size.width = CGRectGetMaxX(imageViewFrame) - CGRectGetMinX(frame);
+//                }
+//                if (CGRectGetMaxY(frame) > CGRectGetMaxY(imageViewFrame)) {
+//                    frame.size.height = CGRectGetMaxY(imageViewFrame) - CGRectGetMinY(frame);
+//                }
+//                if (CGRectGetMinY(frame) < CGRectGetMinY(imageViewFrame)) {
+//                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(imageViewFrame);
+//                    frame.origin.y = CGRectGetMinY(imageViewFrame);
+//                }
+            }
+            else { //manip x __ width __ clampMinFromLeft = YES;
+                CGFloat newWidth = originFrame.size.width - xDelta;
+                CGFloat newHeight = originFrame.size.height;
+                if (MIN(newHeight, newWidth) / MAX(newHeight, newWidth) >= (double)_minimumAspectRatio) {
+                    frame.origin.x   = originFrame.origin.x + xDelta;
+                    frame.size.width = originFrame.size.width - xDelta;
+                }
+                if (CGRectGetMinX(frame) < CGRectGetMinX(imageViewFrame)) {
+                    frame.size.width = CGRectGetMaxX(frame) - CGRectGetMinX(imageViewFrame);
+                    frame.origin.x   = CGRectGetMinX(imageViewFrame);
+                }
+            }
+            
+            clampMinFromLeft = YES;
+            
+            break;
+        case TOCropViewOverlayEdgeRight: //
+            if (self.aspectRatioLockEnabled) {
+                aspectHorizontal = YES;
+                CGPoint scaleOrigin = (CGPoint){CGRectGetMinX(originFrame), CGRectGetMidY(originFrame)};
+                frame.size.height = frame.size.width / aspectRatio;
+                frame.origin.y = scaleOrigin.y - (frame.size.height * 0.5f);
+                frame.size.width = originFrame.size.width + xDelta;
+                frame.size.width = MIN(frame.size.width, contentFrame.size.height * aspectRatio);
+            }
+            else { //manip __ __ width __
+                CGFloat newWidth = originFrame.size.width + xDelta;
+                CGFloat newHeight = originFrame.size.height;
+                if (MIN(newHeight, newWidth) / MAX(newHeight, newWidth) >= (double)_minimumAspectRatio) {
+                    frame.size.width = originFrame.size.width + xDelta;
+                }
+                if (CGRectGetMaxX(frame) > CGRectGetMaxX(imageViewFrame)) {
+                    frame.size.width = CGRectGetMaxX(imageViewFrame) - CGRectGetMinX(frame);
+                }
+            }
+            break;
+        case TOCropViewOverlayEdgeBottom: //
+            if (self.aspectRatioLockEnabled) {
+                aspectVertical = YES;
+                CGPoint scaleOrigin = (CGPoint){CGRectGetMidX(originFrame), CGRectGetMinY(originFrame)};
+                frame.size.width = frame.size.height * aspectRatio;
+                frame.origin.x = scaleOrigin.x - (frame.size.width * 0.5f);
+                frame.size.height = originFrame.size.height + yDelta;
+                frame.size.height = MIN(frame.size.height, contentFrame.size.width / aspectRatio);
+            }
+            else { //manip __ __ __ height
+                CGFloat newWidth = originFrame.size.width;
+                CGFloat newHeight = originFrame.size.height + yDelta;
+                
+                if (MIN(newHeight, newWidth) / MAX(newHeight, newWidth) >= (double)_minimumAspectRatio) {
+                    frame.size.height = originFrame.size.height + yDelta;
+                }
+                if (CGRectGetMaxY(frame) > CGRectGetMaxY(imageViewFrame)) {
+                    frame.size.height = CGRectGetMaxY(imageViewFrame) - CGRectGetMinY(frame);
+                }
+            }
+            break;
+        case TOCropViewOverlayEdgeTop:
+            if (self.aspectRatioLockEnabled) {
+                aspectVertical = YES;
+//                yDelta = MAX(0,yDelta);
+                
+                float ymin = -contentFrame.size.height;
+                float yDeltaMaxFromMinSize = (CGRectGetMaxY(originFrame) - minimumSize.height) - originFrame.origin.y;
+                yDelta = MIN(MAX(ymin,yDelta),yDeltaMaxFromMinSize);
+                NSLog(@"ydelta%f",yDelta);
+                NSLog(@"%f",ymin);
+                NSLog(@"%f  = %f - %f - %f",yDeltaMaxFromMinSize,CGRectGetMaxY(originFrame) ,minimumSize.height,originFrame.origin.y);
+                NSLog(@"%f",yDelta);
+                frame.origin.y    = originFrame.origin.y + yDelta;
+                frame.size.height = originFrame.size.height - yDelta;
+                NSLog(@"frame1 = %@",NSStringFromCGRect(frame));
+                if (CGRectGetMinY(frame) < CGRectGetMinY(imageViewFrame)) {
+                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(imageViewFrame);
+                    frame.origin.y = CGRectGetMinY(imageViewFrame);
+                }
+                CGPoint scaleOrigin = (CGPoint){CGRectGetMidX(originFrame), CGRectGetMaxY(originFrame)};
+                frame.size.width = frame.size.height * aspectRatio;
+                frame.origin.x = scaleOrigin.x - (frame.size.width * 0.5f);
+                NSLog(@"frame2 = %@",NSStringFromCGRect(frame));
+                if (CGRectGetMinX(frame) < CGRectGetMinX(imageViewFrame)) {
+                    frame.size.width = CGRectGetMaxX(frame) - CGRectGetMinX(imageViewFrame);
+                    frame.origin.x   = CGRectGetMinX(imageViewFrame);
+                }
+                if (CGRectGetMaxX(frame) > CGRectGetMaxX(imageViewFrame)) {
+                    frame.size.width = CGRectGetMaxX(imageViewFrame) - CGRectGetMinX(frame);
+                }
+                frame.size.height  = frame.size.width / aspectRatio;
+                frame.origin.y     = CGRectGetMaxY(originFrame) - frame.size.height;
+                NSLog(@"frame3 = %@",NSStringFromCGRect(frame));
+            }
+            else { //manip __ y __ height clampMinFromTop = YES;
+                CGFloat newWidth = originFrame.size.width;
+                CGFloat newHeight = originFrame.size.height - yDelta;
+                
+                if (MIN(newHeight, newWidth) / MAX(newHeight, newWidth) >= (double)_minimumAspectRatio) {
+                    frame.origin.y    = originFrame.origin.y + yDelta;
+                    frame.size.height = originFrame.size.height - yDelta;
+                }
+                if (CGRectGetMinY(frame) < CGRectGetMinY(imageViewFrame)) {
+                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(imageViewFrame);
+                    frame.origin.y = CGRectGetMinY(imageViewFrame);
+                }
+//                if (CGRectGetMinY(frame) < CGRectGetMinY(self.imageViewFrame)) {
+//                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(self.imageViewFrame);
+//                    frame.origin.y = CGRectGetMinY(self.imageViewFrame);
+//                }
+            }
+            
+            clampMinFromTop = YES;
+            
+            break;
+            case TOCropViewOverlayEdgeTopLeft://manip x y width height clampMinFromTop = YES; clampMinFromLeft = YES;
+                if (self.aspectRatioLockEnabled) {
+//                    xDelta = MAX(xDelta, 0);
+//                    yDelta = MAX(yDelta, 0);
+                    
+//                    mShouldRect.set(touchX, touchY, mCropViewRect.right, mCropViewRect.bottom);
+//                      if (mRatioLock) {
+//                        float newHeight = mShouldRect.width() / mTargetAspectRatio;
+//                        mShouldRect.set(mShouldRect.left, mCropViewRect.bottom-newHeight, mShouldRect.right, mShouldRect.bottom);
+//                       float newWidth = mShouldRect.height() * mTargetAspectRatio;
+//                        mShouldRect.set(mCropViewRect.right-newWidth, mShouldRect.top, mShouldRect.right, mShouldRect.bottom);
+//                       }
+//                        break;
+                    frame = CGRectMake(point.x, point.y, frameRight-point.x, frameBottom-point.y);
+                    NSLog(@"cropBoxFrame xy frame = %@",NSStringFromCGRect(frame));
+                    CGFloat newHeight = CGRectGetWidth(frame) / aspectRatio;
+                    newHeight = floorf(newHeight);
+                    frame = CGRectMake(frame.origin.x, frameBottom-newHeight, frame.size.width, newHeight);
+                    NSLog(@"cropBoxFrame newHeight frame = %@",NSStringFromCGRect(frame));
+                    CGFloat newWidth = CGRectGetHeight(frame) * aspectRatio;
+                    newWidth = floorf(newWidth);
+                    frame = CGRectMake(frameRight-newWidth, frame.origin.y, newWidth, frame.size.height);
+                    NSLog(@"cropBoxFrame newWidth frame = %@",NSStringFromCGRect(frame));
+//                    CGPoint distance;
+//                    distance.x = 1.0f - (xDelta / CGRectGetWidth(originFrame));
+//                    distance.y = 1.0f - (yDelta / CGRectGetHeight(originFrame));
+//
+//                    CGFloat scale = (distance.x + distance.y) * 0.5f;
+//
+//                    NSLog(@"TOCropViewOverlayEdgeTopLeft frame = %@",NSStringFromCGRect(frame));
+//                    frame.size.width = ceilf(CGRectGetWidth(originFrame) * scale);
+//                    frame.size.height = ceilf(CGRectGetHeight(originFrame) * scale);
+//                    frame.origin.x = originFrame.origin.x + (CGRectGetWidth(originFrame) - frame.size.width);
+//                    frame.origin.y = originFrame.origin.y + (CGRectGetHeight(originFrame) - frame.size.height);
+//
+//                    NSLog(@"TOCropViewOverlayEdgeTopLeft frame = %@",NSStringFromCGRect(frame));
+                    aspectVertical = YES;
+                    aspectHorizontal = YES;
+                }
+                else {
+                    CGFloat newWidth = originFrame.size.width - xDelta;
+                    CGFloat newHeight = originFrame.size.height - yDelta;
+                    
+                    if (MIN(newHeight, newWidth) / MAX(newHeight, newWidth) >= (double)_minimumAspectRatio) {
+                        frame.origin.x   = originFrame.origin.x + xDelta;
+                        frame.size.width = originFrame.size.width - xDelta;
+                        frame.origin.y   = originFrame.origin.y + yDelta;
+                        frame.size.height = originFrame.size.height - yDelta;
+                    }
+                }
+                
+                clampMinFromTop = YES;
+                clampMinFromLeft = YES;
+            {
+                if (CGRectGetMinX(frame) < CGRectGetMinX(self.imageViewFrame)) {
+                    frame.size.width = CGRectGetMaxX(frame) - CGRectGetMinX(self.imageViewFrame);
+                    frame.origin.x = CGRectGetMinX(self.imageViewFrame);
+                }
+                if (CGRectGetMinY(frame) < CGRectGetMinY(self.imageViewFrame)) {
+                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(self.imageViewFrame);
+                    frame.origin.y = CGRectGetMinY(self.imageViewFrame);
+                }
+            }
+                break;
+            case TOCropViewOverlayEdgeTopRight://manip __ y width height clampMinFromTop = YES;
+                if (self.aspectRatioLockEnabled) {
+//                    xDelta = MIN(xDelta, 0);
+//                    yDelta = MAX(yDelta, 0);
+                    
+                    CGPoint distance;
+                    distance.x = 1.0f - ((-xDelta) / CGRectGetWidth(originFrame));
+                    distance.y = 1.0f - ((yDelta) / CGRectGetHeight(originFrame));
+                    
+                    CGFloat scale = (distance.x + distance.y) * 0.5f;
+                    
+                    frame.size.width = ceilf(CGRectGetWidth(originFrame) * scale);
+                    frame.size.height = ceilf(CGRectGetHeight(originFrame) * scale);
+                    frame.origin.y = originFrame.origin.y + (CGRectGetHeight(originFrame) - frame.size.height);
+                    
+                    aspectVertical = YES;
+                    aspectHorizontal = YES;
+                }
+                else {
+                    CGFloat newWidth = originFrame.size.width + xDelta;
+                    CGFloat newHeight = originFrame.size.height - yDelta;
+                    
+                    if (MIN(newHeight, newWidth) / MAX(newHeight, newWidth) >= (double)_minimumAspectRatio) {
+                        frame.size.width  = originFrame.size.width + xDelta;
+                        frame.origin.y    = originFrame.origin.y + yDelta;
+                        frame.size.height = originFrame.size.height - yDelta;
+                    }
+                }
+                
+                clampMinFromTop = YES;
+            {
+                if (CGRectGetMinY(frame) < CGRectGetMinY(self.imageViewFrame)) {
+                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(self.imageViewFrame);
+                    frame.origin.y = CGRectGetMinY(self.imageViewFrame);
+                }
+                if (CGRectGetMaxX(frame) > CGRectGetMaxX(self.imageViewFrame)) {
+                    frame.size.width = CGRectGetMaxX(self.imageViewFrame) - CGRectGetMinX(frame);
+                }
+            }
+                break;
+            case TOCropViewOverlayEdgeBottomLeft://manip x __ width height clampMinFromLeft = YES;
+                if (self.aspectRatioLockEnabled) {
+                    CGPoint distance;
+                    distance.x = 1.0f - (xDelta / CGRectGetWidth(originFrame));
+                    distance.y = 1.0f - (-yDelta / CGRectGetHeight(originFrame));
+                    
+                    CGFloat scale = (distance.x + distance.y) * 0.5f;
+                    
+                    frame.size.width = ceilf(CGRectGetWidth(originFrame) * scale);
+                    frame.size.height = ceilf(CGRectGetHeight(originFrame) * scale);
+                    frame.origin.x = CGRectGetMaxX(originFrame) - frame.size.width;
+                    
+                    aspectVertical = YES;
+                    aspectHorizontal = YES;
+                }
+                else {
+                    CGFloat newWidth = originFrame.size.width - xDelta;
+                    CGFloat newHeight = originFrame.size.height + yDelta;
+                    
+                    if (MIN(newHeight, newWidth) / MAX(newHeight, newWidth) >= (double)_minimumAspectRatio) {
+                        frame.size.height = originFrame.size.height + yDelta;
+                        frame.origin.x    = originFrame.origin.x + xDelta;
+                        frame.size.width  = originFrame.size.width - xDelta;
+                    }
+                }
+                
+                clampMinFromLeft = YES;
+            {
+                if (CGRectGetMinX(frame) < CGRectGetMinX(self.imageViewFrame)) {
+                    frame.size.width = CGRectGetMaxX(frame) - CGRectGetMinX(self.imageViewFrame);
+                    frame.origin.x = CGRectGetMinX(self.imageViewFrame);
+                }
+                if (CGRectGetMaxY(frame) > CGRectGetMaxY(self.imageViewFrame)) {
+                    frame.size.height = CGRectGetMaxY(self.imageViewFrame) - CGRectGetMinY(frame);
+                }
+            }
+                break;
+            case TOCropViewOverlayEdgeBottomRight://manip __ __ width height
+                if (self.aspectRatioLockEnabled) {
+                    
+                    CGPoint distance;
+                    distance.x = 1.0f - ((-1 * xDelta) / CGRectGetWidth(originFrame));
+                    distance.y = 1.0f - ((-1 * yDelta) / CGRectGetHeight(originFrame));
+                    
+                    CGFloat scale = (distance.x + distance.y) * 0.5f;
+                    
+                    if (distance.x > distance.y) {
+                        frame.size.width = ceilf(CGRectGetWidth(originFrame) * scale);
+                        if (CGRectGetMaxX(frame) > CGRectGetMaxX(imageViewFrame)) {
+                            frame.size.width = CGRectGetMaxX(imageViewFrame) - CGRectGetMinX(frame);
+                        }
+                        frame.size.height = ceilf(CGRectGetHeight(originFrame) * scale);
+                    } else {
+                        frame.size.height = ceilf(CGRectGetHeight(originFrame) * scale);
+                        if (CGRectGetMaxY(frame) > CGRectGetMaxY(imageViewFrame)) {
+                            frame.size.height = CGRectGetMaxY(imageViewFrame) - CGRectGetMinY(frame);
+                        }
+                        frame.size.width = ceilf(CGRectGetWidth(originFrame) * scale);
+                    }
+                    
+                    aspectVertical = YES;
+                    aspectHorizontal = YES;
+                }
+                else {
+                    CGFloat newWidth = originFrame.size.width + xDelta;
+                    CGFloat newHeight = originFrame.size.height + yDelta;
+                    
+                    if (MIN(newHeight, newWidth) / MAX(newHeight, newWidth) >= (double)_minimumAspectRatio) {
+                        frame.size.height = originFrame.size.height + yDelta;
+                        frame.size.width = originFrame.size.width + xDelta;
+                    }
+
+                    if (CGRectGetMaxX(frame) > CGRectGetMaxX(imageViewFrame)) {
+                        frame.size.width = CGRectGetMaxX(imageViewFrame) - CGRectGetMinX(frame);
+                    }
+                    if (CGRectGetMaxY(frame) > CGRectGetMaxY(imageViewFrame)) {
+                        frame.size.height = CGRectGetMaxY(imageViewFrame) - CGRectGetMinY(frame);
+                    }
+                }
+            {
+            }
+                break;
+            case TOCropViewOverlayEdgeNone://manip x y __ __
+            if (_cropFrameLock) {
+                    break;
+            }
+                
+                clampMinFromLeft = YES;
+                clampMinFromTop = YES;
+            {
+                frame.origin.x    = originFrame.origin.x + xDelta;
+                frame.origin.y    = originFrame.origin.y + yDelta;
+                
+                CGRect cropBoxFrame = self.cropBoxFrame;
+                CGSize frameSize = self.cropBoxFrame.size;
+                CGRect contentFrame = self.contentBounds;
+                
+                CGFloat xOrigin = ceilf(contentFrame.origin.x);
+                CGFloat xDelta = cropBoxFrame.origin.x - xOrigin;
+                cropBoxFrame.origin.x = floorf(MAX(cropBoxFrame.origin.x, xOrigin));
+                if (xDelta < -FLT_EPSILON) //If we clamp the x value, ensure we compensate for the subsequent delta generated in the width (Or else, the box will keep growing)
+                    cropBoxFrame.size.width += xDelta;
+                
+                CGFloat yOrigin = ceilf(contentFrame.origin.y);
+                CGFloat yDelta = cropBoxFrame.origin.y - yOrigin;
+                cropBoxFrame.origin.y = floorf(MAX(cropBoxFrame.origin.y, yOrigin));
+                if (yDelta < -FLT_EPSILON)
+                    cropBoxFrame.size.height += yDelta;
+                
+                //given the clamped X/Y values, make sure we can't extend the crop box beyond the edge of the screen in the current state
+                CGFloat maxWidth = (contentFrame.size.width + contentFrame.origin.x) - frame.origin.x;
+                cropBoxFrame.size.width = floorf(MIN(frame.size.width, maxWidth));
+                
+                CGFloat maxHeight = (contentFrame.size.height + contentFrame.origin.y) - frame.origin.y;
+                cropBoxFrame.size.height = floorf(MIN(frame.size.height, maxHeight));
+                
+                if (cropBoxFrame.size.width < frame.size.width) {
+                    frame.origin.x = contentFrame.origin.x + contentFrame.size.width - frame.size.width;
+                }
+                clampMinFromLeft = YES;
+                clampMinFromTop = YES;
+            }
+                break;
+            default:
+                break;
+        }
+    
+    NSLog(@"cropBoxFrame after frame = %@",NSStringFromCGRect(frame));
+//    if (NO && _stillImageCropboxMove) {
+//           frame.origin.x    = originFrame.origin.x + xDelta;
+//           frame.origin.y    = originFrame.origin.y + yDelta;
+//
+//       CGRect cropBoxFrame = self.cropBoxFrame;
+//       CGSize frameSize = self.cropBoxFrame.size;
+//       CGRect contentFrame = self.contentBounds;
+//
+//       CGFloat xOrigin = ceilf(contentFrame.origin.x);
+//       CGFloat xDelta = cropBoxFrame.origin.x - xOrigin;
+//       cropBoxFrame.origin.x = floorf(MAX(cropBoxFrame.origin.x, xOrigin));
+//
+//       CGFloat yOrigin = ceilf(contentFrame.origin.y);
+//       CGFloat yDelta = cropBoxFrame.origin.y - yOrigin;
+//       cropBoxFrame.origin.y = floorf(MAX(cropBoxFrame.origin.y, yOrigin));
+//
+//       //given the clamped X/Y values, make sure we can't extend the crop box beyond the edge of the screen in the current state
+////       CGFloat maxWidth = (contentFrame.size.width + contentFrame.origin.x) - frame.origin.x;
+////       cropBoxFrame.size.width = floorf(MIN(frame.size.width, maxWidth));
+////
+////       CGFloat maxHeight = (contentFrame.size.height + contentFrame.origin.y) - frame.origin.y;
+////       cropBoxFrame.size.height = floorf(MIN(frame.size.height, maxHeight));
+////
+////       if (cropBoxFrame.size.width < frame.size.width) {
+////           frame.origin.x = contentFrame.origin.x + contentFrame.size.width - frame.size.width;
+////       }
+////        if (cropBoxFrame.size.height > frame.size.height) {
+////            frame.size.height =;
+////        }
+//   }
+    //The absolute max/min size the box may be in the bounds of the crop view
+    CGSize minSize = (CGSize){kTOCropViewMinimumBoxSize, kTOCropViewMinimumBoxSize};
+    CGSize maxSize = (CGSize){CGRectGetWidth(contentFrame), CGRectGetHeight(contentFrame)};
+    //clamp the box to ensure it doesn't go beyond the bounds we've set
+    if (self.aspectRatioLockEnabled && aspectHorizontal) {
+        maxSize.height = contentFrame.size.width / aspectRatio;
+        minSize.width = kTOCropViewMinimumBoxSize * aspectRatio;
+    }
+        
+    if (self.aspectRatioLockEnabled && aspectVertical) {
+        maxSize.width = contentFrame.size.height * aspectRatio;
+        minSize.height = kTOCropViewMinimumBoxSize / aspectRatio;
+    }
+    minSize = (CGSize){
+        MAX(kTOCropViewMinimumBoxSize*aspectRatio, kTOCropViewMinimumBoxSize),
+        MAX(kTOCropViewMinimumBoxSize/aspectRatio, kTOCropViewMinimumBoxSize)
+    };
+
+
+    NSLog(@"frame = %@",NSStringFromCGRect(frame));
+    // Clamp the width if it goes over
+    if (clampMinFromLeft) {
+        CGFloat maxWidth = CGRectGetMaxX(self.cropOriginFrame) - contentFrame.origin.x;
+        frame.size.width = MIN(frame.size.width, maxWidth);
+    }
+
+    if (clampMinFromTop) {
+        CGFloat maxHeight = CGRectGetMaxY(self.cropOriginFrame) - contentFrame.origin.y;
+        frame.size.height = MIN(frame.size.height, maxHeight);
+    }
+    NSLog(@"frame = %@",NSStringFromCGRect(frame));
+
+    //Clamp the minimum size
+    frame.size.width  = MAX(frame.size.width, minSize.width);
+    frame.size.height = MAX(frame.size.height, minSize.height);
+    
+    //Clamp the maximum size
+    frame.size.width  = MIN(frame.size.width, maxSize.width);
+    frame.size.height = MIN(frame.size.height, maxSize.height);
+    NSLog(@"minSize = %@",NSStringFromCGSize(minSize));
+    NSLog(@"maxSize = %@",NSStringFromCGSize(maxSize));
+    NSLog(@"frame = %@",NSStringFromCGRect(frame));
+    
+    //Clamp the X position of the box to the interior of the cropping bounds
+    frame.origin.x = MAX(frame.origin.x, CGRectGetMinX(contentFrame));
+    frame.origin.x = MIN(frame.origin.x, CGRectGetMaxX(contentFrame) - minSize.width);
+
+    //Clamp the Y postion of the box to the interior of the cropping bounds
+    frame.origin.y = MAX(frame.origin.y, CGRectGetMinY(contentFrame));
+    frame.origin.y = MIN(frame.origin.y, CGRectGetMaxY(contentFrame) - minSize.height);
+    
+    //Once the box is completely shrunk, clamp its ability to move
+    if (clampMinFromLeft && frame.size.width <= minSize.width + FLT_EPSILON) {
+        frame.origin.x = CGRectGetMaxX(originFrame) - minSize.width;
+    }
+    
+    //Once the box is completely shrunk, clamp its ability to move
+    if (clampMinFromTop && frame.size.height <= minSize.height + FLT_EPSILON) {
+        frame.origin.y = CGRectGetMaxY(originFrame) - minSize.height;
+    }
+    
+    if (self.stillImageCropboxMove) {
+        if (clampMinFromLeft && frame.origin.x<self.imageViewFrame.origin.x) {
+            frame.origin.x = self.imageViewFrame.origin.x;
+        }
+        if (clampMinFromTop && frame.origin.y<self.imageViewFrame.origin.y) {
+            frame.origin.y = self.imageViewFrame.origin.y;
+        }
+        
+        //wt: find maxX possible from same width
+        if (clampMinFromLeft && CGRectGetMaxX(frame)>CGRectGetMaxX(self.imageViewFrame)) {
+            frame.origin.x = CGRectGetMaxX(self.imageViewFrame)-CGRectGetWidth(frame);
+        }
+        //wt: find maxY possible from same height
+        if (clampMinFromTop && CGRectGetMaxY(frame)>CGRectGetMaxY(self.imageViewFrame)) {
+            frame.origin.y = CGRectGetMaxY(self.imageViewFrame)-CGRectGetHeight(frame);
+        }
+    }
+    NSLog(@"final rect = %@",NSStringFromCGRect(frame));
+    
+    self.cropBoxFrame = frame;
+    
+    [self checkForCanReset];
 }
 
 - (void)updateCropBoxFrameWithGesturePoint:(CGPoint)point
@@ -655,14 +1247,12 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
                     frame.size.height = originFrame.size.height + yDelta;
                     frame.size.width = originFrame.size.width + xDelta;
                 }
-                CGFloat maxWidth = (contentFrame.size.width + contentFrame.origin.x) - frame.origin.x;
-                frame.size.width = floorf(MIN(frame.size.width, maxWidth));
-                
-                CGFloat maxHeight = (contentFrame.size.height + contentFrame.origin.y) - frame.origin.y;
-                frame.size.height = floorf(MIN(frame.size.height, maxHeight));
             }
             break;
         case TOCropViewOverlayEdgeNone:
+            if (_cropFrameLock) {
+                    break;
+            }
             if (self.stillImageCropboxMove) {
                 if (self.aspectRatioLockEnabled) {
 //                    CGPoint distance;
@@ -719,151 +1309,7 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
             }
             break;
     }
-    if (!self.aspectRatioLockEnabled && self.stillImageCropboxMove) {
-        switch (self.tappedEdge) {
-            case TOCropViewOverlayEdgeLeft://manip x __ width __ clampMinFromLeft = YES;
-            {
-                if (CGRectGetMinX(frame) < CGRectGetMinX(self.imageViewFrame)) {
-                    frame.size.width = CGRectGetMaxX(frame) - CGRectGetMinX(self.imageViewFrame);
-                    frame.origin.x = CGRectGetMinX(self.imageViewFrame);
-                }
-            }
-                break;
-            case TOCropViewOverlayEdgeRight:///manip __ __ width __
-            {
-                if (CGRectGetMaxX(frame) > CGRectGetMaxX(self.imageViewFrame)) {
-                    frame.size.width = CGRectGetMaxX(self.imageViewFrame) - CGRectGetMinX(frame);
-                }
-            }
-                break;
-            case TOCropViewOverlayEdgeBottom:///manip __ __ __ height
-            {
-                if (CGRectGetMaxY(frame) > CGRectGetMaxY(self.imageViewFrame)) {
-                    frame.size.height = CGRectGetMaxY(self.imageViewFrame) - CGRectGetMinY(frame);
-                }
-            }
-                break;
-            case TOCropViewOverlayEdgeTop://manip __ y __ height clampMinFromTop = YES;
-            {
-                if (CGRectGetMinY(frame) < CGRectGetMinY(self.imageViewFrame)) {
-                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(self.imageViewFrame);
-                    frame.origin.y = CGRectGetMinY(self.imageViewFrame);
-                }
-            }
-                break;
-            case TOCropViewOverlayEdgeTopLeft://manip x y width height clampMinFromTop = YES; clampMinFromLeft = YES;
-            {
-                if (CGRectGetMinX(frame) < CGRectGetMinX(self.imageViewFrame)) {
-                    frame.size.width = CGRectGetMaxX(frame) - CGRectGetMinX(self.imageViewFrame);
-                    frame.origin.x = CGRectGetMinX(self.imageViewFrame);
-                }
-                if (CGRectGetMinY(frame) < CGRectGetMinY(self.imageViewFrame)) {
-                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(self.imageViewFrame);
-                    frame.origin.y = CGRectGetMinY(self.imageViewFrame);
-                }
-            }
-                break;
-            case TOCropViewOverlayEdgeTopRight://manip __ y width height clampMinFromTop = YES;
-            {
-                if (CGRectGetMinY(frame) < CGRectGetMinY(self.imageViewFrame)) {
-                    frame.size.height = CGRectGetMaxY(frame) - CGRectGetMinY(self.imageViewFrame);
-                    frame.origin.y = CGRectGetMinY(self.imageViewFrame);
-                }
-                if (CGRectGetMaxX(frame) > CGRectGetMaxX(self.imageViewFrame)) {
-                    frame.size.width = CGRectGetMaxX(self.imageViewFrame) - CGRectGetMinX(frame);
-                }
-            }
-                break;
-            case TOCropViewOverlayEdgeBottomLeft://manip x __ width height clampMinFromLeft = YES;
-            {
-                if (CGRectGetMinX(frame) < CGRectGetMinX(self.imageViewFrame)) {
-                    frame.size.width = CGRectGetMaxX(frame) - CGRectGetMinX(self.imageViewFrame);
-                    frame.origin.x = CGRectGetMinX(self.imageViewFrame);
-                }
-                if (CGRectGetMaxY(frame) > CGRectGetMaxY(self.imageViewFrame)) {
-                    frame.size.height = CGRectGetMaxY(self.imageViewFrame) - CGRectGetMinY(frame);
-                }
-            }
-                break;
-            case TOCropViewOverlayEdgeBottomRight://manip __ __ width height
-            {
-                if (CGRectGetMaxX(frame) > CGRectGetMaxX(self.imageViewFrame)) {
-                    frame.size.width = CGRectGetMaxX(self.imageViewFrame) - CGRectGetMinX(frame);
-                }
-                if (CGRectGetMaxY(frame) > CGRectGetMaxY(self.imageViewFrame)) {
-                    frame.size.height = CGRectGetMaxY(self.imageViewFrame) - CGRectGetMinY(frame);
-                }
-            }
-                break;
-            case TOCropViewOverlayEdgeNone://manip x y __ __
-            {
-                frame.origin.x    = originFrame.origin.x + xDelta;
-                frame.origin.y    = originFrame.origin.y + yDelta;
-                
-                CGRect cropBoxFrame = self.cropBoxFrame;
-                CGSize frameSize = self.cropBoxFrame.size;
-                CGRect contentFrame = self.contentBounds;
-                
-                CGFloat xOrigin = ceilf(contentFrame.origin.x);
-                CGFloat xDelta = cropBoxFrame.origin.x - xOrigin;
-                cropBoxFrame.origin.x = floorf(MAX(cropBoxFrame.origin.x, xOrigin));
-                if (xDelta < -FLT_EPSILON) //If we clamp the x value, ensure we compensate for the subsequent delta generated in the width (Or else, the box will keep growing)
-                    cropBoxFrame.size.width += xDelta;
-                
-                CGFloat yOrigin = ceilf(contentFrame.origin.y);
-                CGFloat yDelta = cropBoxFrame.origin.y - yOrigin;
-                cropBoxFrame.origin.y = floorf(MAX(cropBoxFrame.origin.y, yOrigin));
-                if (yDelta < -FLT_EPSILON)
-                    cropBoxFrame.size.height += yDelta;
-                
-                //given the clamped X/Y values, make sure we can't extend the crop box beyond the edge of the screen in the current state
-                CGFloat maxWidth = (contentFrame.size.width + contentFrame.origin.x) - frame.origin.x;
-                cropBoxFrame.size.width = floorf(MIN(frame.size.width, maxWidth));
-                
-                CGFloat maxHeight = (contentFrame.size.height + contentFrame.origin.y) - frame.origin.y;
-                cropBoxFrame.size.height = floorf(MIN(frame.size.height, maxHeight));
-                
-                if (cropBoxFrame.size.width < frame.size.width) {
-                    frame.origin.x = contentFrame.origin.x + contentFrame.size.width - frame.size.width;
-                }
-                clampMinFromLeft = YES;
-                clampMinFromTop = YES;
-            }
-                break;
-            default:
-                break;
-        }
-    }
-    if (NO && _stillImageCropboxMove) {
-           frame.origin.x    = originFrame.origin.x + xDelta;
-           frame.origin.y    = originFrame.origin.y + yDelta;
-       
-       CGRect cropBoxFrame = self.cropBoxFrame;
-       CGSize frameSize = self.cropBoxFrame.size;
-       CGRect contentFrame = self.contentBounds;
-       
-       CGFloat xOrigin = ceilf(contentFrame.origin.x);
-       CGFloat xDelta = cropBoxFrame.origin.x - xOrigin;
-       cropBoxFrame.origin.x = floorf(MAX(cropBoxFrame.origin.x, xOrigin));
-       
-       CGFloat yOrigin = ceilf(contentFrame.origin.y);
-       CGFloat yDelta = cropBoxFrame.origin.y - yOrigin;
-       cropBoxFrame.origin.y = floorf(MAX(cropBoxFrame.origin.y, yOrigin));
-       
-       //given the clamped X/Y values, make sure we can't extend the crop box beyond the edge of the screen in the current state
-//       CGFloat maxWidth = (contentFrame.size.width + contentFrame.origin.x) - frame.origin.x;
-//       cropBoxFrame.size.width = floorf(MIN(frame.size.width, maxWidth));
-//
-//       CGFloat maxHeight = (contentFrame.size.height + contentFrame.origin.y) - frame.origin.y;
-//       cropBoxFrame.size.height = floorf(MIN(frame.size.height, maxHeight));
-//
-//       if (cropBoxFrame.size.width < frame.size.width) {
-//           frame.origin.x = contentFrame.origin.x + contentFrame.size.width - frame.size.width;
-//       }
-//        if (cropBoxFrame.size.height > frame.size.height) {
-//            frame.size.height =;
-//        }
-   }
+    
     //The absolute max/min size the box may be in the bounds of the crop view
     CGSize minSize = (CGSize){kTOCropViewMinimumBoxSize, kTOCropViewMinimumBoxSize};
     CGSize maxSize = (CGSize){CGRectGetWidth(contentFrame), CGRectGetHeight(contentFrame)};
@@ -914,24 +1360,6 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
     //Once the box is completely shrunk, clamp its ability to move
     if (clampMinFromTop && frame.size.height <= minSize.height + FLT_EPSILON) {
         frame.origin.y = CGRectGetMaxY(originFrame) - minSize.height;
-    }
-    
-    if (self.stillImageCropboxMove) {
-        if (clampMinFromLeft && frame.origin.x<self.imageViewFrame.origin.x) {
-            frame.origin.x = self.imageViewFrame.origin.x;
-        }
-        if (clampMinFromTop && frame.origin.y<self.imageViewFrame.origin.y) {
-            frame.origin.y = self.imageViewFrame.origin.y;
-        }
-        
-        //wt: find maxX possible from same width
-        if (clampMinFromLeft && CGRectGetMaxX(frame)>CGRectGetMaxX(self.imageViewFrame)) {
-            frame.origin.x = CGRectGetMaxX(self.imageViewFrame)-CGRectGetWidth(frame);
-        }
-        //wt: find maxY possible from same height
-        if (clampMinFromTop && CGRectGetMaxY(frame)>CGRectGetMaxY(self.imageViewFrame)) {
-            frame.origin.y = CGRectGetMaxY(self.imageViewFrame)-CGRectGetHeight(frame);
-        }
     }
     
     self.cropBoxFrame = frame;
@@ -1054,7 +1482,11 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
         [self startResetTimer];
     }
     
-    [self updateCropBoxFrameWithGesturePoint:point];
+    if (_stillImageCropboxMove) {
+        [self updateStillImageCropBoxFrameWithGesturePoint:point];
+    } else {
+        [self updateCropBoxFrameWithGesturePoint:point];
+    }
 }
 
 - (void)longPressGestureRecognized:(UILongPressGestureRecognizer *)recognizer
@@ -1252,9 +1684,16 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
     CGFloat maxHeight = (contentFrame.size.height + contentFrame.origin.y) - cropBoxFrame.origin.y;
     cropBoxFrame.size.height = floorf(MIN(cropBoxFrame.size.height, maxHeight));
     
-    //Make sure we can't make the crop box too small
-    cropBoxFrame.size.width  = MAX(cropBoxFrame.size.width, kTOCropViewMinimumBoxSize);
-    cropBoxFrame.size.height = MAX(cropBoxFrame.size.height, kTOCropViewMinimumBoxSize);
+        //Make sure we can't make the crop box too small
+        cropBoxFrame.size.width  = MAX(cropBoxFrame.size.width, kTOCropViewMinimumBoxSize);
+        cropBoxFrame.size.height = MAX(cropBoxFrame.size.height, kTOCropViewMinimumBoxSize);
+//    if (_stillImageCropboxMove) {
+//        CGRect originFrame = self.cropOriginFrame;
+//        CGFloat aspectRatio = (originFrame.size.width / originFrame.size.height);
+//        cropBoxFrame.size.width  = MAX(cropBoxFrame.size.width, kTOCropViewMinimumBoxSize*aspectRatio);
+//        cropBoxFrame.size.height = MAX(cropBoxFrame.size.height, kTOCropViewMinimumBoxSize);
+//    } else {
+//    }
     
     _cropBoxFrame = cropBoxFrame;
     
@@ -1637,7 +2076,21 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
     
     //The scale we need to scale up the crop box to fit full screen
     CGFloat scale = MIN(CGRectGetWidth(contentRect)/CGRectGetWidth(cropFrame), CGRectGetHeight(contentRect)/CGRectGetHeight(cropFrame));
-    scale = 1.0;
+    CGFloat scalew = CGRectGetWidth(contentRect)/CGRectGetWidth(cropFrame);
+    CGFloat scaleh = CGRectGetHeight(contentRect)/CGRectGetHeight(cropFrame);
+    CGSize contentSize = self.scrollView.contentSize;
+    CGFloat scalecw = CGRectGetWidth(contentRect)/contentSize.width;
+    CGFloat scalech = CGRectGetHeight(contentRect)/contentSize.height;
+    CGFloat ratioContent = CGRectGetWidth(contentRect)/CGRectGetHeight(contentRect);
+    
+    CGFloat ratioImage = contentSize.width/contentSize.height;
+    //ratio of w/h  < 1 is vertical  > 1 is horizontal
+    if (ratioImage > 1) {//suppose horizontal image
+        scale = 1;
+    } else {
+        scale = 1;
+    }
+    
     CGPoint focusPoint = (CGPoint){CGRectGetMidX(cropFrame), CGRectGetMidY(cropFrame)};
     CGPoint midPoint = (CGPoint){CGRectGetMidX(contentRect), CGRectGetMidY(contentRect)};
     
@@ -2070,9 +2523,9 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
 - (CGRect)contentBounds
 {
     CGRect contentRect = CGRectZero;
-    contentRect.origin.x = self.cropViewPadding + self.cropRegionInsets.left;
+    contentRect.origin.x = self.cropViewPadding + self.cropRegionInsets.left + _cropExpandWidth;
     contentRect.origin.y = self.cropViewPadding + self.cropRegionInsets.top;
-    contentRect.size.width = CGRectGetWidth(self.bounds) - ((self.cropViewPadding * 2) + self.cropRegionInsets.left + self.cropRegionInsets.right);
+    contentRect.size.width = CGRectGetWidth(self.bounds) - ((self.cropViewPadding * 2) + self.cropRegionInsets.left + self.cropRegionInsets.right) - _cropExpandWidth*2;
     contentRect.size.height = CGRectGetHeight(self.bounds) - ((self.cropViewPadding * 2) + self.cropRegionInsets.top + self.cropRegionInsets.bottom);
     return contentRect;
 }
@@ -2091,9 +2544,21 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
 }
 
 
+- (void)setCropRegionInsets:(UIEdgeInsets)cropRegionInsets {
+    _cropRegionInsets = UIEdgeInsetsMake(cropRegionInsets.top, _cropRegionInsets.left, cropRegionInsets.bottom, _cropRegionInsets.right);
+    [_gridOverlayView updateView];
+}
+- (void)setCropFrameLock:(BOOL)cropFrameLock
+{
+    _cropFrameLock = cropFrameLock;
+//    _gridOverlayView.cropFrameLock = cropFrameLock;
+//    [_gridOverlayView updateColor];
+//    [_gridOverlayView updateView];
+}
 - (void)setCropFrameColor:(UIColor *)cropFrameColor {
     _cropFrameColor = cropFrameColor;
     _gridOverlayView.cropFrameColor = cropFrameColor;
+    [_gridOverlayView updateColor];
     [_gridOverlayView updateView];
 }
 - (void)setCropFrameWidth:(NSInteger)cropFrameWidth {
@@ -2109,6 +2574,18 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
 - (void)setCropCornerWidth:(NSInteger)cropCornerWidth {
     _cropCornerWidth = cropCornerWidth;
     _gridOverlayView.cropCornerWidth = _cropCornerWidth;
+    [_gridOverlayView updateView];
+}
+- (void)setCropExpandWidth:(NSInteger)cropExpandWidth {
+    _cropExpandWidth = cropExpandWidth;
+    _gridOverlayView.cropExpandWidth = _cropExpandWidth;
+    
+    [_gridOverlayView updateView];
+}
+- (void)setCropExtraPadding:(NSInteger)cropExtraPadding {
+    _cropExtraPadding = cropExtraPadding;
+    _cropRegionInsets = UIEdgeInsetsMake(_cropRegionInsets.top, cropExtraPadding, _cropRegionInsets.bottom, cropExtraPadding);
+    
     [_gridOverlayView updateView];
 }
 - (void)setStillImageCropboxMove:(BOOL)stillImageCropboxMove {

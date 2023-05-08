@@ -101,6 +101,7 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
         #endif
         
         self.stillImageCropboxMove = NO;
+        self.cropFrameLock = NO;
     }
 	
     return self;
@@ -143,10 +144,13 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
 {
     [super viewWillAppear:animated];
     
+    self.cropView.cropFrameLock = self.cropFrameLock;
     self.cropView.cropFrameColor = self.cropFrameColor;
     self.cropView.cropFrameWidth = self.cropFrameWidth;
     self.cropView.cropCornerLength = self.cropCornerLength;
     self.cropView.cropCornerWidth = self.cropCornerWidth;
+    self.cropView.cropExpandWidth = self.cropExpandWidth;
+    self.cropView.cropExtraPadding = self.cropExtraPadding;
     self.cropView.stillImageCropboxMove = self.stillImageCropboxMove;
     
     // If we're animating onto the screen, set a flag
@@ -410,11 +414,18 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     self.titleLabel2.frame = frame;
 
     // Set out the appropriate inset for that
-    CGFloat verticalInset = self.statusBarHeight;
-//    verticalInset += kTOCropViewControllerTitleTopPadding;
-//    verticalInset += self.titleLabel.frame.size.height;
-    verticalInset += self.titleLabel2.frame.size.height;
-    self.cropView.cropRegionInsets = UIEdgeInsetsMake(verticalInset+10, 0, insets.bottom, 0);
+    if (!self.titleLabel2.text.length) {
+        CGFloat verticalInset = self.statusBarHeight;
+        verticalInset += kTOCropViewControllerTitleTopPadding;
+        verticalInset += self.titleLabel.frame.size.height;
+        self.cropView.cropRegionInsets = UIEdgeInsetsMake(verticalInset, 0, insets.bottom, 0);
+    } else {
+        CGFloat verticalInset = self.statusBarHeight;
+        verticalInset += kTOCropViewControllerTitleTopPadding;
+        verticalInset += self.titleLabel.frame.size.height;
+        verticalInset += self.titleLabel2.frame.size.height;
+        self.cropView.cropRegionInsets = UIEdgeInsetsMake(verticalInset, 0, insets.bottom, 0);
+    }
 }
 
 - (void)adjustToolbarInsets
@@ -461,7 +472,10 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
 
     self.cropView.frame = [self frameForCropViewWithVerticalLayout:self.verticalLayout];
     [self adjustCropViewInsets];
-    [self.cropView moveCroppedContentToCenterAnimated:NO];
+    if (_stillImageCropboxMove) {
+    } else {
+        [self.cropView moveCroppedContentToCenterAnimated:NO];
+    }
 
     if (self.firstTime == NO) {
         [self.cropView performInitialSetup];

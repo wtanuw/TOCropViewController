@@ -95,11 +95,39 @@ static const CGFloat kTOCropOverLayerCornerWidth = 20.0f;
         UIView *lineView = self.outerLineViews[i];
         
         CGRect frame = CGRectZero;
+        if (_cropExpandWidth == 0) {
+//            switch (i) {
+//                case 0: frame = (CGRect){0,-1.0f,boundsSize.width+2.0f, 1.0f}; break; //top
+//                case 1: frame = (CGRect){boundsSize.width,0.0f,1.0f,boundsSize.height}; break; //right
+//                case 2: frame = (CGRect){-1.0f,boundsSize.height,boundsSize.width+2.0f,1.0f}; break; //bottom
+//                case 3: frame = (CGRect){-1.0f,0,1.0f,boundsSize.height+1.0f}; break; //left
+//            }
+            NSInteger horizontalFrameWidth = _cropFrameWidth;
+            NSInteger verticalFrameWidth = _cropFrameWidth;
+            NSInteger x = -_cropFrameWidth;
+            NSInteger y = -_cropFrameWidth;
+            switch (i) {
+                case 0: frame = (CGRect){x,y,boundsSize.width+verticalFrameWidth+verticalFrameWidth, horizontalFrameWidth}; break; //top
+                case 1: frame = (CGRect){boundsSize.width,0.0f,verticalFrameWidth,boundsSize.height}; break; //right
+                case 2: frame = (CGRect){x,boundsSize.height,boundsSize.width+verticalFrameWidth+verticalFrameWidth,horizontalFrameWidth}; break; //bottom
+                case 3: frame = (CGRect){x,0,verticalFrameWidth,boundsSize.height+horizontalFrameWidth}; break; //left
+            }
+        } else {
+        NSInteger horizontalFrameWidth = _cropFrameWidth;
+        NSInteger verticalFrameWidth = _cropFrameWidth;
+        NSInteger x = -_cropFrameWidth - _cropExpandWidth;
+        NSInteger y = -_cropFrameWidth;
+        NSInteger width = boundsSize.width+_cropFrameWidth*2+_cropExpandWidth*2;
+        NSInteger height = boundsSize.height+_cropFrameWidth;
         switch (i) {
-            case 0: frame = (CGRect){0,-_cropFrameWidth,boundsSize.width+_cropFrameWidth*2, _cropFrameWidth}; break; //top
-            case 1: frame = (CGRect){boundsSize.width,0.0f,_cropFrameWidth,boundsSize.height}; break; //right
-            case 2: frame = (CGRect){-_cropFrameWidth,boundsSize.height,boundsSize.width+_cropFrameWidth*2,_cropFrameWidth}; break; //bottom
-            case 3: frame = (CGRect){-_cropFrameWidth,0,_cropFrameWidth,boundsSize.height+_cropFrameWidth}; break; //left
+            case 0: frame = (CGRect){x,y,width, horizontalFrameWidth}; break; //top
+            case 1: frame = (CGRect){boundsSize.width+_cropExpandWidth,0.0f,verticalFrameWidth,boundsSize.height}; break; //right
+            case 2: frame = (CGRect){x,boundsSize.height,width,horizontalFrameWidth}; break; //bottom
+            case 3: frame = (CGRect){x,0,verticalFrameWidth,height}; break; //left
+//            case 1: frame = (CGRect){width,y,verticalFrameWidth,height}; break; //right
+//            case 2: frame = (CGRect){x,height,width,horizontalFrameWidth}; break; //bottom
+//            case 3: frame = (CGRect){x,y,verticalFrameWidth,height}; break; //left
+        }
         }
         
         lineView.frame = frame;
@@ -111,23 +139,52 @@ static const CGFloat kTOCropOverLayerCornerWidth = 20.0f;
         NSArray *cornerLine = cornerLines[i];
         
         CGRect verticalFrame = CGRectZero, horizontalFrame = CGRectZero;
-        switch (i) {
-            case 0: //top left
-                verticalFrame = (CGRect){-_cropCornerWidth,-_cropCornerWidth,_cropCornerWidth,_cropCornerLength+_cropCornerWidth};
-                horizontalFrame = (CGRect){0,-_cropCornerWidth,_cropCornerLength,_cropCornerWidth};
-                break;
-            case 1: //top right
-                verticalFrame = (CGRect){boundsSize.width,-_cropCornerWidth,_cropCornerWidth,_cropCornerLength+_cropCornerWidth};
-                horizontalFrame = (CGRect){boundsSize.width-_cropCornerLength,-_cropCornerWidth,_cropCornerLength,_cropCornerWidth};
-                break;
-            case 2: //bottom right
-                verticalFrame = (CGRect){boundsSize.width,boundsSize.height-_cropCornerLength,_cropCornerWidth,_cropCornerLength+_cropCornerWidth};
-                horizontalFrame = (CGRect){boundsSize.width-_cropCornerLength,boundsSize.height,_cropCornerLength,_cropCornerWidth};
-                break;
-            case 3: //bottom left
-                verticalFrame = (CGRect){-_cropCornerWidth,boundsSize.height-_cropCornerLength,_cropCornerWidth,_cropCornerLength};
-                horizontalFrame = (CGRect){-_cropCornerWidth,boundsSize.height,_cropCornerLength+_cropCornerWidth,_cropCornerWidth};
-                break;
+        if (_cropExpandWidth == 0) {
+            switch (i) {
+                case 0: //top left
+                    verticalFrame = (CGRect){-_cropCornerWidth,-_cropCornerWidth,_cropCornerWidth,_cropCornerLength+_cropCornerWidth};
+                    horizontalFrame = (CGRect){0,-_cropCornerWidth,_cropCornerLength,_cropCornerWidth};
+                    break;
+                case 1: //top right
+                    verticalFrame = (CGRect){boundsSize.width,-_cropCornerWidth,_cropCornerWidth,_cropCornerLength+_cropCornerWidth};
+                    horizontalFrame = (CGRect){boundsSize.width-_cropCornerLength,-_cropCornerWidth,_cropCornerLength,_cropCornerWidth};
+                    break;
+                case 2: //bottom right
+                    verticalFrame = (CGRect){boundsSize.width,boundsSize.height-_cropCornerLength,_cropCornerWidth,_cropCornerLength+_cropCornerWidth};
+                    horizontalFrame = (CGRect){boundsSize.width-_cropCornerLength,boundsSize.height,_cropCornerLength,_cropCornerWidth};
+                    break;
+                case 3: //bottom left
+                    verticalFrame = (CGRect){-_cropCornerWidth,boundsSize.height-_cropCornerLength,_cropCornerWidth,_cropCornerLength};
+                    horizontalFrame = (CGRect){-_cropCornerWidth,boundsSize.height,_cropCornerLength+_cropCornerWidth,_cropCornerWidth};
+                    break;
+            }
+        } else {
+            switch (i) {
+                case 0: //top left
+                    verticalFrame = (CGRect){-_cropCornerWidth-_cropExpandWidth,-_cropCornerWidth,
+                        _cropCornerWidth,_cropCornerLength+_cropCornerWidth};
+                    horizontalFrame = (CGRect){0-_cropExpandWidth,-_cropCornerWidth,
+                        _cropCornerLength,_cropCornerWidth};
+                    break;
+                case 1: //top right
+                    verticalFrame = (CGRect){boundsSize.width+_cropExpandWidth,0-_cropCornerWidth,
+                        _cropCornerWidth,_cropCornerLength+_cropCornerWidth};
+                    horizontalFrame = (CGRect){boundsSize.width-_cropCornerLength+_cropExpandWidth,-_cropCornerWidth,
+                        _cropCornerLength,_cropCornerWidth};
+                    break;
+                case 2: //bottom right
+                    verticalFrame = (CGRect){boundsSize.width+_cropExpandWidth,boundsSize.height-_cropCornerLength,
+                        _cropCornerWidth,_cropCornerLength+_cropCornerWidth};
+                    horizontalFrame = (CGRect){boundsSize.width-_cropCornerLength+_cropExpandWidth,boundsSize.height,
+                        _cropCornerLength,_cropCornerWidth};
+                    break;
+                case 3: //bottom left
+                    verticalFrame = (CGRect){-_cropCornerWidth-_cropExpandWidth,boundsSize.height-_cropCornerLength,
+                        _cropCornerWidth,_cropCornerLength};
+                    horizontalFrame = (CGRect){-_cropCornerWidth-_cropExpandWidth,boundsSize.height,
+                        _cropCornerLength+_cropCornerWidth,_cropCornerWidth};
+                    break;
+            }
         }
         
         [cornerLine[0] setFrame:verticalFrame];
@@ -227,7 +284,41 @@ static const CGFloat kTOCropOverLayerCornerWidth = 20.0f;
     if (_outerLineViews) {
         [self layoutLines];
     }
+    
 }
+
+- (void)updateColor
+{
+    [_outerLineViews enumerateObjectsUsingBlock:^(UIView *__nonnull lineView, NSUInteger idx, BOOL * __nonnull stop) {
+        [lineView removeFromSuperview];
+    }];
+    [_topLeftLineViews enumerateObjectsUsingBlock:^(UIView *__nonnull lineView, NSUInteger idx, BOOL * __nonnull stop) {
+        [lineView removeFromSuperview];
+    }];
+    [_bottomLeftLineViews enumerateObjectsUsingBlock:^(UIView *__nonnull lineView, NSUInteger idx, BOOL * __nonnull stop) {
+        [lineView removeFromSuperview];
+    }];
+    [_topRightLineViews enumerateObjectsUsingBlock:^(UIView *__nonnull lineView, NSUInteger idx, BOOL * __nonnull stop) {
+        [lineView removeFromSuperview];
+    }];
+    [_bottomRightLineViews enumerateObjectsUsingBlock:^(UIView *__nonnull lineView, NSUInteger idx, BOOL * __nonnull stop) {
+        [lineView removeFromSuperview];
+    }];
+    
+    UIView *(^newLineView)(void) = ^UIView *(void){
+        return [self createNewLineView];
+    };
+
+    _outerLineViews     = @[newLineView(), newLineView(), newLineView(), newLineView()];
+    
+    _topLeftLineViews   = @[newLineView(), newLineView()];
+    _bottomLeftLineViews = @[newLineView(), newLineView()];
+    _topRightLineViews  = @[newLineView(), newLineView()];
+    _bottomRightLineViews = @[newLineView(), newLineView()];
+    
+}
+
+
 
 #pragma mark - Private methods
 
@@ -236,7 +327,7 @@ static const CGFloat kTOCropOverLayerCornerWidth = 20.0f;
     if (self.cropFrameColor) {
         newLine.backgroundColor = self.cropFrameColor;
     } else {
-        newLine.backgroundColor = [UIColor whiteColor];
+        newLine.backgroundColor = [UIColor redColor];
     }
     [self addSubview:newLine];
     return newLine;

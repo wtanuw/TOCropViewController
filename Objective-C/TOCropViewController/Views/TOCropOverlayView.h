@@ -42,7 +42,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) NSInteger cropFrameWidth;
 @property (nonatomic, assign) NSInteger cropCornerLength;
 @property (nonatomic, assign) NSInteger cropCornerWidth;
+@property (nonatomic, assign) NSInteger cropExpandWidth;
+@property (nonatomic, assign) NSInteger cropExtraPadding;
 - (void)updateView;
+- (void)updateColor;
 @end
 
 NS_ASSUME_NONNULL_END
